@@ -49,7 +49,7 @@ def save_text_to_bin(txt_file):
     in_path = Path(txt_file)
     out_path = in_path.with_suffix(".npz")
     encoded_data = encode(in_path.read_text())
-    print(f"Saving {txt_file} to {out_path.name}")
+    print(f"Saving {txt_file} → {out_path.name}")
     np.savez_compressed(out_path, data=np.array(encoded_data, dtype=np.uint8))
 
 save_text_to_bin("devanagari_train.txt")
