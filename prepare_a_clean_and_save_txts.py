@@ -31,25 +31,12 @@ def check_dir_exists(input_dir):
                                 f"Extract the zip file to create the directory.\n")
 
 
-def clean_and_save_to_txt(input_dir, output_file):
-    check_dir_exists(input_dir)
-    paths = sorted(list(Path(input_dir).rglob("*.txt")))
-    with open(output_file, "w", encoding="utf-8") as out:
-        print("Writing all text to ", output_file)
-        for i, f in tqdm(enumerate(paths), desc="Processing files", total=len(paths)):
-            tqdm.write(f"{output_file} ← {f.relative_to(input_dir)}")
-            raw_text = f.read_text(encoding="utf-8", errors="ignore")
-            cleaned = clean_text(raw_text)
-            out.write("\x1E")  # separator between files
-            out.write(cleaned)
-
-
-def clean_split_and_save_train_test(input_dir, train_out, test_out, train_fraction=9/10, seed=108):
+def clean_split_and_save_train_test(input_dir,  output_file, train_out, test_out, train_fraction, seed):
     """
     Clean text files and split them into train/test sets reproducibly.
-
     Args:
         input_dir: Directory containing .txt files
+        output_file: Output path for all data
         train_out: Output path for training data
         test_out: Output path for test data
         train_fraction: Fraction of files to put in training set (0.0 to 1.0)
@@ -57,19 +44,36 @@ def clean_split_and_save_train_test(input_dir, train_out, test_out, train_fracti
     """
     check_dir_exists(input_dir)
     paths = sorted(Path(input_dir).rglob("*.txt"))
+    print("Writing training text to ", train_out)
+    print("Writing testing text to ", test_out)
+    print("Writing all text to ", output_file)
 
     random.seed(seed)
-    with open(train_out, "w", encoding="utf-8") as trainout:
-        print("Writing training text to ", train_out)
-        with open(test_out, "w", encoding="utf-8") as testout:
-            print("Writing testing text to ", test_out)
-            for i, f in tqdm(enumerate(paths), desc="Processing files", total=len(paths)):
-                raw_text = f.read_text(encoding="utf-8", errors="ignore")
-                cleaned = clean_text(raw_text)
-                out = trainout if random.random() < train_fraction else testout
-                tqdm.write(f"{out.name} ← {f.relative_to(input_dir)}")
-                out.write("\x1E")  # separator between files
-                out.write(cleaned)
+    with (open(output_file, "w", encoding="utf-8") as allout,
+          open(train_out, "w", encoding="utf-8") as trainout,
+          open(test_out, "w", encoding="utf-8") as testout):
+        for i, f in tqdm(enumerate(paths), desc="Processing files", total=len(paths)):
+            raw_text = f.read_text(encoding="utf-8", errors="ignore")
+            cleaned = clean_text(raw_text)
 
-clean_and_save_to_txt("gretil_devanagari", "devanagari.txt")
-clean_split_and_save_train_test("gretil_devanagari", "devanagari_train.txt", "devanagari_test.txt")
+            allout.write("\x1E")  # separator between files
+            allout.write(cleaned)
+
+            out = trainout if random.random() < train_fraction else testout
+            tqdm.write(f"{out.name} ← {f.relative_to(input_dir)}")
+            out.write("\x1E")  # separator between files
+            out.write(cleaned)
+
+TRAIN_FRAC = 7/8
+SEED = 21
+clean_split_and_save_train_test("gretil_devanagari",
+                                "devanagari.txt",
+                                "devanagari_train.txt",
+                                "devanagari_test.txt",
+                                TRAIN_FRAC, SEED)
+
+train_sz = Path("devanagari_train.txt").stat().st_size / (10**6)
+test_sz = Path("devanagari_test.txt").stat().st_size / (10**6)
+print(f"Data Size: \n\tTrain:{train_sz:7.2f} \n\tTest:{test_sz:7.2f}"
+      f" \n\tTotal:{train_sz+test_sz:7.2f} \n\tRatio:{test_sz/train_sz:.0%}")
+
